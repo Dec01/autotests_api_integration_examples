@@ -1,0 +1,37 @@
+stages:
+  - build
+  - tests
+
+variables:
+  DOCKER_URL: cr.yandex/${ID_REGISTRY}/${CI_PROJECT_NAME}
+
+build:
+  image: docker:dind
+  stage: build
+  before_script:
+    - cat ${YA_KEY} | base64 -d | docker login --username json_key  --password-stdin cr.yandex
+  script:
+    - cat ${ENV_FILE} > ./src/.env
+    - docker build -t ${DOCKER_URL}:${CI_COMMIT_REF_SLUG} .
+    - docker push ${DOCKER_URL}:${CI_COMMIT_REF_SLUG}
+    - docker rmi ${DOCKER_URL}:${CI_COMMIT_REF_SLUG}
+
+test_cases_product_publication:
+  image: ${DOCKER_URL}:${CI_COMMIT_REF_SLUG}
+  stage: tests
+  script:
+    - cat ${ENV_FILE} > ./src/.env
+    - pytest  --verbose -o junit_family=xunit2 --junitxml=reports\\pytest\\result.xml -s src/tests/test_cases_publication_product/*
+  only:
+    - master
+  when: manual
+
+test_cases_link_category_product:
+  image: ${DOCKER_URL}:${CI_COMMIT_REF_SLUG}
+  stage: tests
+  script:
+    - cat ${ENV_FILE} > ./src/.env
+    - pytest  --verbose -o junit_family=xunit2 --junitxml=reports\\pytest\\result.xml -s src/tests/test_cases_link_category_product/*
+  only:
+    - master
+  when: manual
